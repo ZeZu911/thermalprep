@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThermalPrep - Zero-Cloud 4x6 Shipping Label Cropper & Optimizer</title>
+  <meta name="description" content="Instantly crop Amazon, eBay, Etsy, and carrier A4/Letter PDF shipping labels to crisp 4x6 thermal format. 100% in-browser, zero cloud upload.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- PDF.js & jsPDF for 100% Client-Side Processing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #0f141c;
+      --bg-surface: #18202d;
+      --bg-surface-elevated: #212c3d;
+      --border-subtle: #2d3b4e;
+      --border-active: #4f6bfe;
+      --primary: #4361ee;
+      --primary-hover: #3751d4;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      --danger: #ef4444;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.25);
+      --shadow-lg: 0 10px 30px rgba(0,0,0,0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation */
+    header {
+      background: rgba(24, 32, 45, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.85rem 1.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #4361ee, #4cc9f0);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 12px rgba(67, 97, 238, 0.35);
+    }
+
+    .brand-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge-privacy {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .badge-privacy svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 0.55rem 1.1rem;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      border: 1px solid transparent;
+      outline: none;
+      text-decoration: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border-color: var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      background: #2a374b;
+      border-color: #3e4f67;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(67, 97, 238, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      box-shadow: 0 6px 18px rgba(67, 97, 238, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .btn-success {
+      background: #059669;
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: #047857;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+    .btn-outline:hover {
+      color: var(--text-main);
+      border-color: var(--text-muted);
+    }
+
+    /* Main App Layout */
+    .app-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 67px);
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Settings & Presets */
+    .sidebar {
+      width: 340px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .sidebar-section {
+      padding: 1.2rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Presets Grid */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .preset-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0.65rem 0.5rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .preset-card:hover {
+      border-color: #4b6282;
+      background: #273447;
+    }
+
+    .preset-card.active {
+      border-color: var(--border-active);
+      background: rgba(67, 97, 238, 0.12);
+      color: #708aff;
+    }
+
+    .preset-card .preset-icon {
+      font-size: 1.1rem;
+    }
+
+    .preset-card .preset-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .preset-card .preset-desc {
+      font-size: 0.68rem;
+      color: var(--text-subtle);
+    }
+
+    .preset-card.active .preset-desc {
+      color: #9ab0ff;
+    }
+
+    /* Control Rows */
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      gap: 0.5rem;
+    }
+
+    .control-label {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .button-group {
+      display: flex;
+      background: var(--bg-page);
+      padding: 3px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .button-group button {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.35rem 0.65rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .button-group button.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .switch-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      cursor: pointer;
+    }
+
+    .switch-wrap input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .switch-slider {
+      width: 36px;
+      height: 20px;
+      background: var(--bg-page);
+      border-radius: 999px;
+      position: relative;
+      border: 1px solid var(--border-subtle);
+      transition: 0.2s;
+    }
+
+    .switch-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: 0.2s;
+    }
+
+    .switch-wrap input:checked + .switch-slider {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .switch-wrap input:checked + .switch-slider::before {
+      background: white;
+      transform: translateX(16px);
+    }
+
+    /* Page Navigation if Multi-page */
+    .page-navigator {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-page);
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      margin-top: 0.5rem;
+    }
+
+    .page-indicator {
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
+
+    /* Center Stage: Interactive Workspace */
+    .workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #090d14;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Top Workspace Bar */
+    .workspace-toolbar {
+      padding: 0.65rem 1.25rem;
+      background: rgba(15, 20, 28, 0.75);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 5;
+    }
+
+    .workspace-info {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .workspace-info span.highlight {
+      color: #93c5fd;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(147, 197, 253, 0.1);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .zoom-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .zoom-btn:hover {
+      background: #2f3e54;
+    }
+
+    /* Canvas Stage Area */
+    .canvas-stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: auto;
+      padding: 2rem;
+    }
+
+    /* Drop Overlay for File Upload */
+    .dropzone-empty {
+      max-width: 520px;
+      width: 100%;
+      border: 2px dashed #3a4b63;
+      border-radius: var(--radius-lg);
+      padding: 3rem 2rem;
+      text-align: center;
+      background: rgba(24, 32, 45, 0.4);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.2rem;
+    }
+
+    .dropzone-empty.dragover {
+      border-color: var(--primary);
+      background: rgba(67, 97, 238, 0.08);
+      transform: scale(1.01);
+    }
+
+    .dropzone-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(67, 97, 238, 0.15);
+      color: #6d84ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+    }
+
+    .dropzone-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .dropzone-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Interactive Canvas & Crop Container */
+    .crop-wrapper {
+      position: relative;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      border-radius: 4px;
+      user-select: none;
+      display: none;
+    }
+
+    #sourceCanvas {
+      display: block;
+      max-width: 100%;
+      background: white;
+    }
+
+    /* Draggable/Resizable Crop Overlay */
+    .crop-box {
+      position: absolute;
+      border: 2px solid #2563eb;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
+      cursor: move;
+      touch-action: none;
+      box-sizing: border-box;
+    }
+
+    .crop-grid {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      border: 1px dashed rgba(255, 255, 255, 0.35);
+    }
+
+    .crop-grid-cell {
+      border-right: 1px dashed rgba(255, 255, 255, 0.25);
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.25);
+    }
+
+    /* Resize Handles */
+    .handle {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: #ffffff;
+      border: 2px solid #2563eb;
+      border-radius: 2px;
+    }
+    .handle.nw { top: -6px; left: -6px; cursor: nwse-resize; }
+    .handle.ne { top: -6px; right: -6px; cursor: nesw-resize; }
+    .handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+    .handle.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+    .handle.n  { top: -6px; left: calc(50% - 6px); cursor: ns-resize; }
+    .handle.s  { bottom: -6px; left: calc(50% - 6px); cursor: ns-resize; }
+    .handle.w  { left: -6px; top: calc(50% - 6px); cursor: ew-resize; }
+    .handle.e  { right: -6px; top: calc(50% - 6px); cursor: ew-resize; }
+
+    /* Right Sidebar: 4x6 Thermal Preview & Output */
+    .preview-panel {
+      width: 320px;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .preview-card {
+      background: #0f141c;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .preview-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .preview-badge {
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .thermal-paper-mock {
+      background: white;
+      width: 200px;
+      height: 300px; /* 4x6 ratio */
+      border-radius: 2px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      position: relative;
+    }
+
+    .thermal-paper-mock.landscape {
+      width: 260px;
+      height: 173px; /* 6x4 ratio */
+    }
+
+    #previewCanvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .preview-empty-text {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    .action-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-top: 1rem;
+    }
+
+    /* Print Quick Setup Guide */
+    .print-tip-box {
+      margin-top: auto;
+      background: rgba(33, 44, 61, 0.6);
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .print-tip-box strong {
+      color: var(--text-main);
+    }
+
+    /* Hidden Native Print Area */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printContainer, #printContainer * {
+        visibility: visible;
+      }
+      #printContainer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      @page {
+        size: 4in 6in;
+        margin: 0;
+      }
+      img.print-label-img {
+        width: 4in;
+        height: 6in;
+        object-fit: contain;
+        display: block;
+      }
+    }
+
+    #printContainer {
+      display: none;
+    }
+
+    /* Notification Toast */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #334155;
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+
+  <meta name="keywords" content="crop amazon shipping label to 4x6, convert a4 label to 4x6 pdf, thermal label cropper free, ebay shipping label resize for rollo, split shipping label and invoice pdf, fba label cropper, 4x6 thermal printer label converter">
+  <meta name="author" content="ThermalPrep">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="ThermalPrep - Free 4x6 Thermal Shipping Label Cropper & Converter">
+  <meta property="og:description" content="Convert Amazon, eBay, Etsy, and carrier A4/Letter PDF labels into crisp 4x6 thermal format in seconds. 100% client-side privacy, zero cloud uploads.">
+  <meta property="og:image" content="https://thermalprep.app/og-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ThermalPrep - Free 4x6 Thermal Shipping Label Cropper">
+  <meta name="twitter:description" content="Instant in-browser shipping label optimizer for Rollo, Munbyn, Zebra, and DYMO thermal printers.">
+
+  <!-- Schema.org Rich Snippet JSON-LD for Google SEO -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "name": "ThermalPrep",
+        "url": "https://thermalprep.app",
+        "description": "Zero-cloud 4x6 shipping label optimizer and cropper for Amazon, eBay, Etsy, and carrier PDFs.",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "All",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How do I crop an Amazon shipping label to 4x6 for a thermal printer?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Upload or drag your Amazon Seller Central A4/Letter PDF into ThermalPrep, select the Amazon FBA preset or adjust the crop box to frame your label, and click Print Direct to Thermal or Download 4x6 PDF."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is my customer data safe when cropping labels?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, 100%. ThermalPrep operates completely client-side in your browser RAM using JavaScript. Your files, customer addresses, tracking codes, and order details are never sent to any external server."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which thermal printers are compatible with ThermalPrep?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "ThermalPrep outputs standard 4x6 inch (100x150mm) formats compatible with Rollo, Munbyn, Zebra, DYMO LabelWriter 4XL, Jiose, Brother, and all direct thermal label printers."
+            }
+          }
+        ]
+      }
+    ]
+  }
+
+    
+  </script>
+
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand-wrap">
+      <div class="brand-icon">TP</div>
+      <div>
+        <div class="brand-name">
+          ThermalPrep
+          <span class="badge-privacy">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            100% Client-Side Privacy
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-outline" id="btnOpenTipJar" title="Support this free project">
+        ☕ Support Tool
+      </button>
+      <button class="btn btn-secondary" id="btnLoadSample">
+        ⚡ Try Demo Shipping Label
+      </button>
+      <label class="btn btn-primary" style="margin: 0; cursor: pointer;">
+        📂 Upload PDF / Image
+        <input type="file" id="fileInput" accept=".pdf,image/png,image/jpeg,image/webp" style="display: none;">
+      </label>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <div class="app-container">
+
+    <!-- Left Sidebar: Crop Presets & Tuning -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>Carrier & Platform Presets</span>
+          <span style="font-size: 0.65rem; color: #38bdf8;">1-Click</span>
+        </div>
+        <div class="preset-grid">
+          <div class="preset-card active" data-preset="amazon-box">
+            <div class="preset-icon">📦</div>
+            <div class="preset-name">Amazon FBA</div>
+            <div class="preset-desc">Standard 4x6 Box</div>
+          </div>
+          <div class="preset-card" data-preset="ebay-half">
+            <div class="preset-icon">🏷️</div>
+            <div class="preset-name">eBay 2-Up</div>
+            <div class="preset-desc">Top Half Sheet</div>
+          </div>
+          <div class="preset-card" data-preset="etsy-split">
+            <div class="preset-icon">✨</div>
+            <div class="preset-name">Etsy Order</div>
+            <div class="preset-desc">Right/Top Label</div>
+          </div>
+          <div class="preset-card" data-preset="usps-center">
+            <div class="preset-icon">📮</div>
+            <div class="preset-name">USPS / UPS</div>
+            <div class="preset-desc">Standard Sheet</div>
+          </div>
+          <div class="preset-card" data-preset="auto-detect">
+            <div class="preset-icon">🎯</div>
+            <div class="preset-name">Auto Detect</div>
+            <div class="preset-desc">Trim Margins</div>
+          </div>
+          <div class="preset-card" data-preset="custom">
+            <div class="preset-icon">📐</div>
+            <div class="preset-name">Freeform</div>
+            <div class="preset-desc">Manual Drag</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rotation & Orientation Controls -->
+      <div class="sidebar-section">
+        <div class="section-title">Orientation & Rotation</div>
+
+        <div class="control-row">
+          <span class="control-label">Label Size:</span>
+          <div class="button-group" id="aspectRatioGroup">
+            <button class="active" data-ratio="portrait">4×6 Portrait</button>
+            <button data-ratio="landscape">6×4 Landscape</button>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <span class="control-label">Rotate Label:</span>
+          <div style="display: flex; gap: 0.4rem;">
+            <button class="btn btn-secondary btn-outline" id="btnRotateCCW" title="Rotate 90 Counter-Clockwise" style="padding: 0.35rem 0.65rem; font-size: 0.8rem;">
+              ↺ 90° Left
+            </button>
+            <button class="btn btn-secondary btn-outline" id="btnRotateCW" title="Rotate 90 Clockwise" style="padding: 0.35rem 0.65rem; font-size: 0.8rem;">
+              ↻ 90° Right
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thermal Print Enhancement Tools -->
+      <div class="sidebar-section">
+        <div class="section-title">Thermal Clarity Tuning</div>
+
+        <div class="control-row">
+          <div>
+            <div class="control-label" style="font-weight: 600; color: #fff;">Barcode High-Contrast</div>
+            <div style="font-size: 0.68rem; color: var(--text-subtle);">Binarize faded codes for 203 DPI heads</div>
+          </div>
+          <label class="switch-wrap">
+            <input type="checkbox" id="contrastToggle">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <div class="control-row" style="margin-top: 0.5rem;">
+          <span class="control-label">Print Padding:</span>
+          <div class="button-group" id="paddingGroup">
+            <button data-padding="0">None</button>
+            <button class="active" data-padding="4">2mm</button>
+            <button data-padding="8">4mm</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multi-page Navigator (Enabled if multi-page PDF loaded) -->
+      <div class="sidebar-section" id="multiPageSection" style="display: none;">
+        <div class="section-title">PDF Page Navigator</div>
+        <div class="page-navigator">
+          <button class="btn btn-secondary" id="btnPrevPage" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">← Prev</button>
+          <span class="page-indicator" id="pageIndicator">Page 1 of 1</span>
+          <button class="btn btn-secondary" id="btnNextPage" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Next →</button>
+        </div>
+        <div style="margin-top: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 0.72rem; color: var(--text-muted);">Apply crop to all pages</span>
+          <input type="checkbox" id="applyAllPagesCheck" checked style="accent-color: var(--primary);">
+        </div>
+      </div>
+
+      <!-- Trust & Privacy Footnote -->
+      <div style="padding: 1.25rem; margin-top: auto; font-size: 0.72rem; color: var(--text-subtle); line-height: 1.4;">
+        🔒 <strong>Zero Data Transmission</strong>: All rendering and PDF compilation occur strictly in your browser RAM. Your customer addresses, tracking codes, and order quantities are never saved or sent to any server.
+      </div>
+    </aside>
+
+    <!-- Center Workspace / Canvas Area -->
+    <main class="workspace">
+      <div class="workspace-toolbar">
+        <div class="workspace-info">
+          <span>Source: <strong id="docNameDisplay" style="color: #fff;">No document loaded</strong></span>
+          <span id="docDimDisplay" class="highlight" style="display: none;">0 x 0 pt</span>
+        </div>
+
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="btnZoomOut" title="Zoom Out">−</button>
+          <span id="zoomLevelDisplay" style="font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; width: 45px; text-align: center;">100%</span>
+          <button class="zoom-btn" id="btnZoomIn" title="Zoom In">+</button>
+          <button class="zoom-btn" id="btnZoomReset" title="Fit Screen" style="width: auto; padding: 0 0.5rem; font-size: 0.75rem;">Fit</button>
+        </div>
+      </div>
+
+      <div class="canvas-stage" id="stageContainer">
+        <!-- Empty State Dropzone -->
+        <div class="dropzone-empty" id="dropzone">
+          <div class="dropzone-icon">📄</div>
+          <div>
+            <div class="dropzone-title">Drop your shipping PDF or label here</div>
+            <div class="dropzone-sub">Supports Amazon Seller Central, eBay, Etsy, Shopify, UPS, FedEx, USPS labels (PDF, PNG, JPG)</div>
+          </div>
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center;">
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Browse File</button>
+            <button class="btn btn-secondary" onclick="loadSampleShippingLabel()">Load Sample Label</button>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-subtle);">
+            Instant 4×6 thermal conversion · Free forever · No sign-up
+          </div>
+        </div>
+
+        <!-- Interactive Crop Surface -->
+        <div class="crop-wrapper" id="cropWrapper">
+          <canvas id="sourceCanvas"></canvas>
+          <div class="crop-box" id="cropBox">
+            <div class="crop-grid">
+              <div class="crop-grid-cell"></div><div class="crop-grid-cell"></div><div class="crop-grid-cell"></div>
+              <div class="crop-grid-cell"></div><div class="crop-grid-cell"></div><div class="crop-grid-cell"></div>
+              <div class="crop-grid-cell"></div><div class="crop-grid-cell"></div><div class="crop-grid-cell"></div>
+            </div>
+            <!-- Resize Handles -->
+            <div class="handle nw" data-handle="nw"></div>
+            <div class="handle n"  data-handle="n"></div>
+            <div class="handle ne" data-handle="ne"></div>
+            <div class="handle e"  data-handle="e"></div>
+            <div class="handle se" data-handle="se"></div>
+            <div class="handle s"  data-handle="s"></div>
+            <div class="handle sw" data-handle="sw"></div>
+            <div class="handle w"  data-handle="w"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Sidebar: 4x6 Thermal Result & Direct Output -->
+    <aside class="preview-panel">
+      <div class="sidebar-section">
+        <div class="preview-header">
+          <div class="section-title" style="margin-bottom: 0;">Live 4×6 Thermal Preview</div>
+          <span class="preview-badge" id="previewDimensionBadge">4" × 6" (100×150mm)</span>
+        </div>
+
+        <div class="preview-card" style="margin-top: 0.75rem;">
+          <div class="thermal-paper-mock" id="thermalPaperMock">
+            <canvas id="previewCanvas"></canvas>
+            <div class="preview-empty-text" id="previewEmptyText">Crop a region to view thermal output</div>
+          </div>
+        </div>
+
+        <!-- Output Action Buttons -->
+        <div class="action-stack">
+          <button class="btn btn-success" id="btnPrintThermal" disabled style="padding: 0.75rem; font-size: 0.95rem;">
+            🖨️ Print Direct to Thermal (4×6)
+          </button>
+          <button class="btn btn-primary" id="btnDownloadPDF" disabled>
+            📥 Download 4×6 Vector PDF
+          </button>
+          <button class="btn btn-secondary" id="btnDownloadPNG" disabled>
+            🖼️ Download High-Res PNG (300 DPI)
+          </button>
+        </div>
+      </div>
+
+      
+      <!-- High-Yield Thermal Supplies Affiliate Recommendations -->
+      <div class="sidebar-section" style="padding-top: 0.75rem;">
+        <div class="section-title">
+          <span>Recommended Gear</span>
+          <span style="font-size: 0.65rem; color: #10b981;">Tested</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <a href="https://amazon.com" target="_blank" rel="noopener noreferrer" style="text-decoration: none; background: #0f141c; border: 1px solid #283548; padding: 0.6rem 0.75rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;" onmouseover="this.style.borderColor='#4361ee'" onmouseout="this.style.borderColor='#283548'">
+            <div>
+              <div style="font-size: 0.78rem; font-weight: 600; color: #f1f5f9;">Munbyn & Rollo Thermal Printers</div>
+              <div style="font-size: 0.68rem; color: #64748b;">Top rated direct thermal 4x6</div>
+            </div>
+            <span style="font-size: 0.8rem; color: #38bdf8;">→</span>
+          </a>
+          <a href="https://amazon.com" target="_blank" rel="noopener noreferrer" style="text-decoration: none; background: #0f141c; border: 1px solid #283548; padding: 0.6rem 0.75rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;" onmouseover="this.style.borderColor='#4361ee'" onmouseout="this.style.borderColor='#283548'">
+            <div>
+              <div style="font-size: 0.78rem; font-weight: 600; color: #f1f5f9;">Fanfold 4×6 Direct Thermal Paper</div>
+              <div style="font-size: 0.68rem; color: #64748b;">Zero-jam stacks (500–2,000 pack)</div>
+            </div>
+            <span style="font-size: 0.8rem; color: #38bdf8;">→</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Quick Thermal Calibration Instructions -->
+      <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="print-tip-box">
+          <div style="font-weight: 700; color: #fff; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.3rem;">
+            ⚙️ Thermal Printer Settings Checklist
+          </div>
+          <div style="margin-bottom: 0.25rem;">• <strong>Paper Size</strong>: 4.00 × 6.00 in (or 100 × 150 mm)</div>
+          <div style="margin-bottom: 0.25rem;">• <strong>Scale</strong>: 100% (Do NOT use "Fit to Printable Area")</div>
+          <div style="margin-bottom: 0.25rem;">• <strong>Margins</strong>: None / 0</div>
+          <div>• <strong>Compatible</strong>: Rollo, Munbyn, Zebra, DYMO 4XL, Jiose, Brother</div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Print Sandbox Container for Media Print -->
+  <div id="printContainer">
+    <img id="printTargetImage" class="print-label-img" alt="Shipping Label">
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <span id="toastMsg">Label cropped successfully</span>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // State management
+    const state = {
+      pdfDoc: null,
+      pageNum: 1,
+      pageCount: 1,
+      imageObj: null,
+      zoom: 1.0,
+      rotation: 0, // 0, 90, 180, 270
+      aspectRatio: 'portrait', // 'portrait' (4x6 = 2:3) or 'landscape' (6x4 = 3:2)
+      contrastBoost: false,
+      padding: 4, // px margin
+      crop: {
+        x: 40,
+        y: 40,
+        width: 320,
+        height: 480
+      },
+      currentPreset: 'amazon-box',
+      sourceDimensions: { width: 0, height: 0 },
+      isDragging: false,
+      isResizing: false,
+      activeHandle: null,
+      dragStart: { x: 0, y: 0 },
+      cropStart: { x: 0, y: 0, width: 0, height: 0 }
+    };
+
+    // Elements
+    const dropzone = document.getElementById('dropzone');
+    const stageContainer = document.getElementById('stageContainer');
+    const cropWrapper = document.getElementById('cropWrapper');
+    const sourceCanvas = document.getElementById('sourceCanvas');
+    const cropBox = document.getElementById('cropBox');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const previewEmptyText = document.getElementById('previewEmptyText');
+    const thermalPaperMock = document.getElementById('thermalPaperMock');
+    const fileInput = document.getElementById('fileInput');
+    const docNameDisplay = document.getElementById('docNameDisplay');
+    const docDimDisplay = document.getElementById('docDimDisplay');
+    const zoomLevelDisplay = document.getElementById('zoomLevelDisplay');
+    const multiPageSection = document.getElementById('multiPageSection');
+    const pageIndicator = document.getElementById('pageIndicator');
+    const contrastToggle = document.getElementById('contrastToggle');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+
+    const btnPrintThermal = document.getElementById('btnPrintThermal');
+    const btnDownloadPDF = document.getElementById('btnDownloadPDF');
+    const btnDownloadPNG = document.getElementById('btnDownloadPNG');
+    const btnPrevPage = document.getElementById('btnPrevPage');
+    const btnNextPage = document.getElementById('btnNextPage');
+    const btnRotateCW = document.getElementById('btnRotateCW');
+    const btnRotateCCW = document.getElementById('btnRotateCCW');
+    const btnZoomIn = document.getElementById('btnZoomIn');
+    const btnZoomOut = document.getElementById('btnZoomOut');
+    const btnZoomReset = document.getElementById('btnZoomReset');
+    const btnLoadSample = document.getElementById('btnLoadSample');
+
+    // Setup PDF.js worker
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    function showToast(msg) {
+      toastMsg.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Drag and drop listeners
+    ['dragenter', 'dragover'].forEach(name => {
+      stageContainer.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      stageContainer.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+      });
+    });
+
+    stageContainer.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleIncomingFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleIncomingFile(e.target.files[0]);
+      }
+    });
+
+    btnLoadSample.addEventListener('click', () => {
+      loadSampleShippingLabel();
+    });
+
+    function handleIncomingFile(file) {
+      docNameDisplay.innerText = file.name;
+      const fileType = file.type;
+
+      if (fileType === 'application/pdf' || file.name.endsWith('.pdf')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const typedarray = new Uint8Array(e.target.result);
+          pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+            state.pdfDoc = pdf;
+            state.pageCount = pdf.numPages;
+            state.pageNum = 1;
+            state.imageObj = null;
+
+            if (state.pageCount > 1) {
+              multiPageSection.style.display = 'block';
+              updatePageIndicator();
+            } else {
+              multiPageSection.style.display = 'none';
+            }
+            renderPDFPage();
+          }).catch(err => {
+            alert('Failed to parse PDF: ' + err.message);
+          });
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (fileType.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            state.pdfDoc = null;
+            state.imageObj = img;
+            multiPageSection.style.display = 'none';
+            renderImageToCanvas();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert('Please upload a PDF shipping label or an image (PNG/JPG).');
+      }
+    }
+
+    // Render loaded PDF page
+    function renderPDFPage() {
+      if (!state.pdfDoc) return;
+      state.pdfDoc.getPage(state.pageNum).then(page => {
+        const viewport = page.getViewport({ scale: 2.0 }); // 2x scale for sharp barcode rendering
+        sourceCanvas.width = viewport.width;
+        sourceCanvas.height = viewport.height;
+        state.sourceDimensions = { width: viewport.width, height: viewport.height };
+
+        const ctx = sourceCanvas.getContext('2d');
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+
+        page.render(renderContext).promise.then(() => {
+          showWorkspace();
+          applyPreset(state.currentPreset);
+          updatePreview();
+          showToast(`Page ${state.pageNum} rendered in high-res vector`);
+        });
+      });
+    }
+
+    // Render image to canvas
+    function renderImageToCanvas() {
+      if (!state.imageObj) return;
+      const img = state.imageObj;
+      sourceCanvas.width = img.width;
+      sourceCanvas.height = img.height;
+      state.sourceDimensions = { width: img.width, height: img.height };
+
+      const ctx = sourceCanvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      showWorkspace();
+      applyPreset(state.currentPreset);
+      updatePreview();
+      showToast('Image loaded');
+    }
+
+    function showWorkspace() {
+      dropzone.style.display = 'none';
+      cropWrapper.style.display = 'block';
+      docDimDisplay.style.display = 'inline-block';
+      docDimDisplay.innerText = `${sourceCanvas.width} × ${sourceCanvas.height} px`;
+
+      btnPrintThermal.disabled = false;
+      btnDownloadPDF.disabled = false;
+      btnDownloadPNG.disabled = false;
+
+      fitZoomToStage();
+    }
+
+    // Fit canvas nicely to current stage view
+    function fitZoomToStage() {
+      const stageW = stageContainer.clientWidth - 80;
+      const stageH = stageContainer.clientHeight - 80;
+      const scaleW = stageW / sourceCanvas.width;
+      const scaleH = stageH / sourceCanvas.height;
+      state.zoom = Math.min(scaleW, scaleH, 1.0);
+      applyZoom();
+    }
+
+    function applyZoom() {
+      cropWrapper.style.transform = `scale(${state.zoom})`;
+      cropWrapper.style.transformOrigin = 'center center';
+      zoomLevelDisplay.innerText = `${Math.round(state.zoom * 100)}%`;
+    }
+
+    btnZoomIn.addEventListener('click', () => {
+      state.zoom = Math.min(state.zoom + 0.15, 2.5);
+      applyZoom();
+    });
+
+    btnZoomOut.addEventListener('click', () => {
+      state.zoom = Math.max(state.zoom - 0.15, 0.2);
+      applyZoom();
+    });
+
+    btnZoomReset.addEventListener('click', () => {
+      fitZoomToStage();
+    });
+
+    // Rotation controls
+    btnRotateCW.addEventListener('click', () => {
+      rotateCanvas(90);
+    });
+
+    btnRotateCCW.addEventListener('click', () => {
+      rotateCanvas(-90);
+    });
+
+    function rotateCanvas(degrees) {
+      const srcW = sourceCanvas.width;
+      const srcH = sourceCanvas.height;
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = srcW;
+      tempCanvas.height = srcH;
+      tempCanvas.getContext('2d').drawImage(sourceCanvas, 0, 0);
+
+      if (Math.abs(degrees) === 90 || Math.abs(degrees) === 270) {
+        sourceCanvas.width = srcH;
+        sourceCanvas.height = srcW;
+      }
+
+      const ctx = sourceCanvas.getContext('2d');
+      ctx.save();
+      ctx.translate(sourceCanvas.width / 2, sourceCanvas.height / 2);
+      ctx.rotate((degrees * Math.PI) / 180);
+      ctx.drawImage(tempCanvas, -srcW / 2, -srcH / 2);
+      ctx.restore();
+
+      state.sourceDimensions = { width: sourceCanvas.width, height: sourceCanvas.height };
+      docDimDisplay.innerText = `${sourceCanvas.width} × ${sourceCanvas.height} px`;
+      applyPreset(state.currentPreset);
+      fitZoomToStage();
+      updatePreview();
+      showToast(`Rotated ${degrees > 0 ? '+90°' : '-90°'}`);
+    }
+
+    // Carrier Presets
+    document.querySelectorAll('.preset-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        const preset = card.getAttribute('data-preset');
+        state.currentPreset = preset;
+        applyPreset(preset);
+        updatePreview();
+      });
+    });
+
+    function applyPreset(preset) {
+      const W = sourceCanvas.width;
+      const H = sourceCanvas.height;
+      if (!W || !H) return;
+
+      const isLandscape = state.aspectRatio === 'landscape';
+      const targetRatio = isLandscape ? (6 / 4) : (4 / 6);
+
+      let boxW = 0;
+      let boxH = 0;
+      let boxX = 0;
+      let boxY = 0;
+
+      switch (preset) {
+        case 'amazon-box':
+          // Standard Amazon FBA: Top half or centered label (approx 4x6 on Letter/A4)
+          boxW = Math.round(W * 0.85);
+          boxH = Math.round(boxW / targetRatio);
+          if (boxH > H * 0.58) {
+            boxH = Math.round(H * 0.52);
+            boxW = Math.round(boxH * targetRatio);
+          }
+          boxX = Math.round((W - boxW) / 2);
+          boxY = Math.round(H * 0.04);
+          break;
+
+        case 'ebay-half':
+          // eBay 2-Up: Half sheet
+          boxW = Math.round(W * 0.92);
+          boxH = Math.round(H * 0.46);
+          boxX = Math.round((W - boxW) / 2);
+          boxY = Math.round(H * 0.02);
+          break;
+
+        case 'etsy-split':
+          // Etsy: Upper right or upper half
+          boxW = Math.round(W * 0.78);
+          boxH = Math.round(boxW / targetRatio);
+          boxX = Math.round(W * 0.1);
+          boxY = Math.round(H * 0.05);
+          break;
+
+        case 'usps-center':
+          // USPS / UPS: Center of sheet
+          boxH = Math.round(H * 0.65);
+          boxW = Math.round(boxH * targetRatio);
+          if (boxW > W * 0.9) {
+            boxW = Math.round(W * 0.9);
+            boxH = Math.round(boxW / targetRatio);
+          }
+          boxX = Math.round((W - boxW) / 2);
+          boxY = Math.round((H - boxH) / 2);
+          break;
+
+        case 'auto-detect':
+          autoDetectLabelBounds();
+          return;
+
+        case 'custom':
+        default:
+          boxW = Math.round(W * 0.7);
+          boxH = Math.round(boxW / targetRatio);
+          boxX = Math.round((W - boxW) / 2);
+          boxY = Math.round((H - boxH) / 2);
+          break;
+      }
+
+      setCropBox(boxX, boxY, boxW, boxH);
+    }
+
+    // Auto-detection of label margins via pixel analysis
+    function autoDetectLabelBounds() {
+      const W = sourceCanvas.width;
+      const H = sourceCanvas.height;
+      const ctx = sourceCanvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, W, H).data;
+
+      let minX = W, minY = H, maxX = 0, maxY = 0;
+      const threshold = 235; // Pixels darker than 235 are considered content
+
+      // Sample every 4th pixel for speed
+      for (let y = 10; y < H - 10; y += 4) {
+        for (let x = 10; x < W - 10; x += 4) {
+          const idx = (y * W + x) * 4;
+          const r = imgData[idx];
+          const g = imgData[idx + 1];
+          const b = imgData[idx + 2];
+          const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+
+          if (brightness < threshold) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (minX < maxX && minY < maxY) {
+        const padding = 20;
+        minX = Math.max(0, minX - padding);
+        minY = Math.max(0, minY - padding);
+        maxX = Math.min(W, maxX + padding);
+        maxY = Math.min(H, maxY + padding);
+
+        setCropBox(minX, minY, maxX - minX, maxY - minY);
+        showToast('Auto-detected label boundaries');
+      } else {
+        // Fallback
+        setCropBox(W * 0.1, H * 0.1, W * 0.8, H * 0.6);
+        showToast('Default boundary applied');
+      }
+    }
+
+    function setCropBox(x, y, width, height) {
+      state.crop.x = Math.max(0, Math.min(x, sourceCanvas.width - width));
+      state.crop.y = Math.max(0, Math.min(y, sourceCanvas.height - height));
+      state.crop.width = width;
+      state.crop.height = height;
+
+      cropBox.style.left = `${state.crop.x}px`;
+      cropBox.style.top = `${state.crop.y}px`;
+      cropBox.style.width = `${state.crop.width}px`;
+      cropBox.style.height = `${state.crop.height}px`;
+    }
+
+    // Aspect Ratio Toggle
+    document.querySelectorAll('#aspectRatioGroup button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#aspectRatioGroup button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.aspectRatio = btn.getAttribute('data-ratio');
+
+        if (state.aspectRatio === 'landscape') {
+          thermalPaperMock.classList.add('landscape');
+          document.getElementById('previewDimensionBadge').innerText = '6" × 4" (150×100mm)';
+        } else {
+          thermalPaperMock.classList.remove('landscape');
+          document.getElementById('previewDimensionBadge').innerText = '4" × 6" (100×150mm)';
+        }
+
+        applyPreset(state.currentPreset);
+        updatePreview();
+      });
+    });
+
+    // Padding settings
+    document.querySelectorAll('#paddingGroup button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#paddingGroup button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.padding = parseInt(btn.getAttribute('data-padding'), 10);
+        updatePreview();
+      });
+    });
+
+    // Contrast Toggle
+    contrastToggle.addEventListener('change', (e) => {
+      state.contrastBoost = e.target.checked;
+      updatePreview();
+      showToast(state.contrastBoost ? 'High contrast enabled for 203 DPI' : 'Normal contrast');
+    });
+
+    // Update 4x6 Preview Canvas
+    function updatePreview() {
+      if (!sourceCanvas.width || !sourceCanvas.height) return;
+
+      const pCtx = previewCanvas.getContext('2d');
+      const isLandscape = state.aspectRatio === 'landscape';
+
+      // High-res preview canvas (standard 300 DPI 4x6: 1200 x 1800 px)
+      const targetW = isLandscape ? 1800 : 1200;
+      const targetH = isLandscape ? 1200 : 1800;
+
+      previewCanvas.width = targetW;
+      previewCanvas.height = targetH;
+
+      // Fill crisp white background
+      pCtx.fillStyle = '#ffffff';
+      pCtx.fillRect(0, 0, targetW, targetH);
+
+      const pad = (state.padding / 100) * targetW;
+      const drawW = targetW - (pad * 2);
+      const drawH = targetH - (pad * 2);
+
+      // Draw cropped region from source canvas
+      pCtx.drawImage(
+        sourceCanvas,
+        state.crop.x,
+        state.crop.y,
+        state.crop.width,
+        state.crop.height,
+        pad,
+        pad,
+        drawW,
+        drawH
+      );
+
+      // Contrast / Binarization Filter if enabled
+      if (state.contrastBoost) {
+        const imgData = pCtx.getImageData(0, 0, targetW, targetH);
+        const data = imgData.data;
+        const cutoff = 160;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          const val = lum < cutoff ? 0 : 255;
+          data[i] = val;
+          data[i + 1] = val;
+          data[i + 2] = val;
+        }
+        pCtx.putImageData(imgData, 0, 0);
+      }
+
+      previewEmptyText.style.display = 'none';
+      previewCanvas.style.display = 'block';
+    }
+
+    // Interactive Dragging & Resizing for Crop Box
+    cropBox.addEventListener('pointerdown', (e) => {
+      if (e.target.classList.contains('handle')) {
+        state.isResizing = true;
+        state.activeHandle = e.target.getAttribute('data-handle');
+      } else {
+        state.isDragging = true;
+      }
+
+      state.dragStart = { x: e.clientX, y: e.clientY };
+      state.cropStart = { ...state.crop };
+      e.stopPropagation();
+      e.preventDefault();
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!state.isDragging && !state.isResizing) return;
+
+      const deltaX = (e.clientX - state.dragStart.x) / state.zoom;
+      const deltaY = (e.clientY - state.dragStart.y) / state.zoom;
+
+      if (state.isDragging) {
+        let newX = state.cropStart.x + deltaX;
+        let newY = state.cropStart.y + deltaY;
+
+        newX = Math.max(0, Math.min(newX, sourceCanvas.width - state.crop.width));
+        newY = Math.max(0, Math.min(newY, sourceCanvas.height - state.crop.height));
+
+        state.crop.x = Math.round(newX);
+        state.crop.y = Math.round(newY);
+      } else if (state.isResizing) {
+        const handle = state.activeHandle;
+        let { x, y, width, height } = state.cropStart;
+
+        if (handle.includes('e')) width += deltaX;
+        if (handle.includes('s')) height += deltaY;
+        if (handle.includes('w')) {
+          width -= deltaX;
+          x += deltaX;
+        }
+        if (handle.includes('n')) {
+          height -= deltaY;
+          y += deltaY;
+        }
+
+        const minSize = 60;
+        if (width >= minSize && x >= 0 && (x + width <= sourceCanvas.width)) {
+          state.crop.x = Math.round(x);
+          state.crop.width = Math.round(width);
+        }
+        if (height >= minSize && y >= 0 && (y + height <= sourceCanvas.height)) {
+          state.crop.y = Math.round(y);
+          state.crop.height = Math.round(height);
+        }
+      }
+
+      cropBox.style.left = `${state.crop.x}px`;
+      cropBox.style.top = `${state.crop.y}px`;
+      cropBox.style.width = `${state.crop.width}px`;
+      cropBox.style.height = `${state.crop.height}px`;
+
+      updatePreview();
+    });
+
+    window.addEventListener('pointerup', () => {
+      state.isDragging = false;
+      state.isResizing = false;
+      state.activeHandle = null;
+    });
+
+    // Page navigation for multi-page PDF
+    function updatePageIndicator() {
+      pageIndicator.innerText = `Page ${state.pageNum} of ${state.pageCount}`;
+      btnPrevPage.disabled = state.pageNum <= 1;
+      btnNextPage.disabled = state.pageNum >= state.pageCount;
+    }
+
+    btnPrevPage.addEventListener('click', () => {
+      if (state.pageNum > 1) {
+        state.pageNum--;
+        updatePageIndicator();
+        renderPDFPage();
+      }
+    });
+
+    btnNextPage.addEventListener('click', () => {
+      if (state.pageNum < state.pageCount) {
+        state.pageNum++;
+        updatePageIndicator();
+        renderPDFPage();
+      }
+    });
+
+    // Direct Thermal Print Pipeline
+    btnPrintThermal.addEventListener('click', () => {
+      const dataUrl = previewCanvas.toDataURL('image/png', 1.0);
+      const printImg = document.getElementById('printTargetImage');
+      printImg.src = dataUrl;
+
+      showToast('Opening 4×6 print dialogue...');
+      setTimeout(() => {
+        window.print();
+      }, 250);
+    });
+
+    // Download 4x6 Vector PDF
+    btnDownloadPDF.addEventListener('click', () => {
+      const { jsPDF } = window.jspdf;
+      const isLandscape = state.aspectRatio === 'landscape';
+
+      // 4 x 6 inches in PDF points (72 pt per inch => 288 x 432 pt)
+      const doc = new jsPDF({
+        orientation: isLandscape ? 'landscape' : 'portrait',
+        unit: 'in',
+        format: [4, 6]
+      });
+
+      const dataUrl = previewCanvas.toDataURL('image/jpeg', 0.98);
+      const width = isLandscape ? 6 : 4;
+      const height = isLandscape ? 4 : 6;
+
+      doc.addImage(dataUrl, 'JPEG', 0, 0, width, height, '', 'FAST');
+      doc.save(`4x6-Thermal-Label-${Date.now()}.pdf`);
+      showToast('4×6 Thermal PDF downloaded!');
+    });
+
+    // Download 300 DPI PNG
+    btnDownloadPNG.addEventListener('click', () => {
+      const dataUrl = previewCanvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `4x6-Thermal-Label-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      showToast('High-Res PNG downloaded!');
+    });
+
+    // Built-in Sample Generator for Instant Testing Without Files
+    function loadSampleShippingLabel() {
+      docNameDisplay.innerText = "Sample_Amazon_FBA_Order_A4.pdf";
+      multiPageSection.style.display = 'none';
+
+      // Create an A4 sized sheet (1240 x 1754 px) with a sample shipping label in the upper section
+      const W = 1240;
+      const H = 1754;
+      sourceCanvas.width = W;
+      sourceCanvas.height = H;
+      state.sourceDimensions = { width: W, height: H };
+
+      const ctx = sourceCanvas.getContext('2d');
+
+      // White paper
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+
+      // Faint cut lines / margins of A4
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 8]);
+      ctx.strokeRect(40, 40, W - 80, H - 80);
+      ctx.setLineDash([]);
+
+      // Draw Shipping Label Box (Upper portion)
+      const labelX = 140;
+      const labelY = 100;
+      const labelW = 960;
+      const labelH = 1400;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(labelX, labelY, labelW, labelH);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(labelX, labelY, labelW, labelH);
+
+      // Carrier Header
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('PRIORITY MAIL 2-DAY®', labelX + 40, labelY + 60);
+
+      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('USPS TRACKING # eVS', labelX + 40, labelY + 110);
+
+      // Large Delivery Code / Zone
+      ctx.font = 'bold 72px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('0004', labelX + labelW - 220, labelY + 90);
+
+      // Horizontal separator
+      ctx.beginPath();
+      ctx.moveTo(labelX, labelY + 140);
+      ctx.lineTo(labelX + labelW, labelY + 140);
+      ctx.stroke();
+
+      // Return Address
+      ctx.font = '22px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('SHIP FROM: FBA Prep Logistics Hub', labelX + 40, labelY + 180);
+      ctx.fillText('742 Evergreen Terrace, Suite 400', labelX + 40, labelY + 215);
+      ctx.fillText('Seattle, WA 98101', labelX + 40, labelY + 250);
+
+      // Ship To
+      ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('SHIP TO:', labelX + 60, labelY + 340);
+      ctx.font = 'bold 38px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('SOBIA IBRAHIM', labelX + 180, labelY + 345);
+      ctx.font = '28px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('1042 MARKET STREET, FLOOR 5', labelX + 180, labelY + 395);
+      ctx.fillText('SAN FRANCISCO CA 94103-1200', labelX + 180, labelY + 440);
+
+      // Horizontal separator
+      ctx.beginPath();
+      ctx.moveTo(labelX, labelY + 500);
+      ctx.lineTo(labelX + labelW, labelY + 500);
+      ctx.stroke();
+
+      // Giant 4x6 Routing Barcode
+      drawMockBarcode(ctx, labelX + 60, labelY + 540, labelW - 120, 180);
+      ctx.font = 'bold 26px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('420 94103 9205 5901 6491 7312 9048 21', labelX + (labelW / 2), labelY + 760);
+      ctx.textAlign = 'left';
+
+      // SKU & FBA Box info box
+      ctx.strokeRect(labelX + 40, labelY + 800, labelW - 80, 160);
+      ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('AMAZON FBA SHIPMENT: FBA17Z89XK4L', labelX + 60, labelY + 850);
+      ctx.font = '22px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('SKU: TECH-CRADLE-BLK-01 (QTY: 48)', labelX + 60, labelY + 895);
+      ctx.fillText('BOX 1 OF 3  |  WT: 14.2 LBS  |  STANDARD', labelX + 60, labelY + 935);
+
+      // 2D Matrix / QR Code Simulation
+      drawMockQRCode(ctx, labelX + labelW - 220, labelY + 1020, 160);
+
+      // Secondary Tracking Barcode
+      drawMockBarcode(ctx, labelX + 60, labelY + 1020, labelW - 320, 140);
+      ctx.font = 'bold 22px "JetBrains Mono", monospace';
+      ctx.fillText('PACKAGE ID: 9400 1000 0000 0000 0000 00', labelX + 70, labelY + 1195);
+
+      // Lower Sheet Packing Invoice (What usually ruins thermal printing!)
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('--- [DETACH HERE] CUSTOMER PACKING SLIP & ORDER SUMMARY ---', 160, 1560);
+      ctx.font = '18px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Order #114-8923019-382910 | Thank you for shopping with us!', 160, 1600);
+      ctx.fillText('Item: Ergonomic Thermal Stand x 1 | Total: $28.50', 160, 1635);
+
+      showWorkspace();
+      applyPreset('amazon-box');
+      updatePreview();
+      showToast('Loaded realistic sample Amazon FBA label!');
+    }
+
+    // Helper: Draw realistic barcode
+    function drawMockBarcode(ctx, x, y, width, height) {
+      ctx.fillStyle = '#000000';
+      let currentX = x;
+      const endX = x + width;
+
+      while (currentX < endX) {
+        const barWidth = Math.floor(Math.random() * 5) + 2;
+        const gap = Math.floor(Math.random() * 4) + 2;
+        ctx.fillRect(currentX, y, barWidth, height);
+        currentX += barWidth + gap;
+      }
+    }
+
+    // Helper: Draw QR code mock
+    function drawMockQRCode(ctx, x, y, size) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(x, y, size, size);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + 10, y + 10, size - 20, size - 20);
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(x + 20, y + 20, 35, 35);
+      ctx.fillRect(x + size - 55, y + 20, 35, 35);
+      ctx.fillRect(x + 20, y + size - 55, 35, 35);
+
+      // Random blocks
+      for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+          if (Math.random() > 0.5) {
+            ctx.fillRect(x + 60 + (i * 10), y + 60 + (j * 10), 8, 8);
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Support / Tip Jar Modal -->
+  <div id="tipModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 200; align-items: center; justify-content: center; padding: 1.5rem;">
+    <div style="background: #18202d; border: 1px solid #334155; border-radius: 14px; max-width: 440px; width: 100%; padding: 1.75rem; box-shadow: 0 20px 40px rgba(0,0,0,0.6); position: relative;">
+      <button id="btnCloseModal" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer;">✕</button>
+      <div style="text-align: center; margin-bottom: 1.25rem;">
+        <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">☕</div>
+        <h3 style="font-size: 1.25rem; font-weight: 700; color: #fff;">Support ThermalPrep</h3>
+        <p style="font-size: 0.82rem; color: #94a3b8; margin-top: 0.35rem; line-height: 1.45;">ThermalPrep is 100% free with zero ads and zero data harvesting. If it saves you time every morning, consider fueling future updates!</p>
+      </div>
+
+      <div style="margin-bottom: 1.25rem;">
+        <a href="https://sobiaibrahim.gumroad.com/l/trfemq?wanted=true" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700; text-align: center; text-decoration: none; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(67, 97, 238, 0.4); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          ☕ Fuel ThermalPrep on Gumroad →
+        </a>
+      </div>
+
+      <div style="background: #0f141c; border: 1px solid #2d3b4e; border-radius: 8px; padding: 0.75rem; font-size: 0.75rem; color: #94a3b8; text-align: center; line-height: 1.4;">
+        🔒 Secure checkout via Gumroad · Supports cards, Apple Pay & Google Pay
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tipModal = document.getElementById('tipModal');
+      const btnOpenTipJar = document.getElementById('btnOpenTipJar');
+      const btnCloseModal = document.getElementById('btnCloseModal');
+
+      if (btnOpenTipJar && tipModal && btnCloseModal) {
+        btnOpenTipJar.addEventListener('click', () => {
+          tipModal.style.display = 'flex';
+        });
+        btnCloseModal.addEventListener('click', () => {
+          tipModal.style.display = 'none';
+        });
+        tipModal.addEventListener('click', (e) => {
+          if (e.target === tipModal) {
+            tipModal.style.display = 'none';
+          }
+        });
+      }
+    });
+  </script>
+
+</body>
+</html>
